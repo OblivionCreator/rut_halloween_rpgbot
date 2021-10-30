@@ -1,32 +1,35 @@
 import asyncio
+import json
+import operator
+import os
+import random
 import time
-from dataclasses import dataclass
-from discord_components import DiscordComponents, ComponentsBot, Button, ActionRow
 import discord.ext.commands
 from discord.ext import commands, tasks
-import random
-import json
-import os
-from datetime import datetime
+from discord_components import ComponentsBot, Button, ActionRow
 
-bot = ComponentsBot(command_prefix=['h!'], case_insensitive=True)
-monsterchannel = 901950648768139367
+intents = discord.Intents.default()
+intents.members = True
 
-def getCandies(userid:int):
+bot = ComponentsBot(command_prefix=['h!'], case_insensitive=True, intents=intents)
+monsterchannel = 903869168636551218
+
+
+def getCandies(userid: int):
     if not os.path.isfile(f'./candy_jar/{userid}.json'):
         with open(f"./candy_jar/{userid}.json", 'x') as file:
             def_candies = {
-                'candy':0,
-                'rare_candy':0
+                'candy': 0,
+                'rare_candy': 0
             }
             file.write(json.dumps(def_candies))
 
     with open(f"./candy_jar/{userid}.json", 'r') as c_file:
-
         raw = json.loads(c_file.read())
         candy, r_candy = raw
 
     return raw[candy], raw[r_candy]
+
 
 def addCandies(userid, n_candy, n_r_candy):
     candy, r_candy = getCandies(userid)
@@ -35,12 +38,13 @@ def addCandies(userid, n_candy, n_r_candy):
     r_candy = r_candy + n_r_candy
 
     c_dict = {
-        'candy':candy,
-        'rare_candy':r_candy
+        'candy': candy,
+        'rare_candy': r_candy
     }
 
     with open(f"./candy_jar/{userid}.json", 'w') as file:
         file.write(json.dumps(c_dict))
+
 
 def getEnemy():
     enemy_list = {
@@ -59,23 +63,26 @@ def getEnemy():
         '<:mimic:902037857269608478>': 'Mimic',
         ':eggplant:': 'Suspicious Plant',
         '🌜🌚🌛': 'Broken Moon',
-        '<:madDummyBro:764589495379034162>':'Bruh Dummy',
-        '🙊 🙊':'Snickers',
-        ':green_square: :skull_crossbones: :green_square:':'Dancing Greenscreen Skeleton',
-        ':race_car: :police_car:':'Hot Pursuit',
-        ':flag_gb:':'The British Empire',
-        ':heart:':'DETERMINATION',
-        '<:botsanstroll:902416763478761474>':'\"Sans\"',
-        '<:sansbadtime:278804488889040896>':'Sans',
-        ':red_circle::knife:     :blue_circle:':'Crewmates',
-        ':hedgehog: :ring: :ring: :ring:':'Sonic The Hedgehog',
-        ':tophat:\n:bat:':'Bat in a Hat',
-        ':💉🌻:': 'The Experiment',
-        ':adhesive_bandage::head_bandage:':'DIY Mummy',
-        '⚱️🚬':'Pot Smoker',
-        ':nut_and_bolt::man_zombie::nut_and_bolt:':'It\'s Alive!',
-        ':peach:':'Suspicious Fruit',
-        ':gun::monkey_face:':'Monkioso'
+        '<:madDummyBro:764589495379034162>': 'Bruh Dummy',
+        '🙊 🙊': 'Snickers',
+        ':green_square: :skull_crossbones: :green_square:': 'Dancing Greenscreen Skeleton',
+        ':race_car: :police_car:': 'Hot Pursuit',
+        ':flag_gb:': 'The British Empire',
+        ':heart:': 'DETERMINATION',
+        '<:botsanstroll:902416763478761474>': '\"Sans\"',
+        '<:sansbadtime:278804488889040896>': 'Sans',
+        ':red_circle::knife:     :blue_circle:': 'Crewmates',
+        ':hedgehog: :ring: :ring: :ring:': 'Sonic The Hedgehog',
+        ':tophat:\n:bat:': 'Bat in a Hat',
+        '💉🌻': 'The Experiment',
+        ':adhesive_bandage::head_bandage:': 'DIY Mummy',
+        '⚱️🚬': 'Pot Smoker',
+        ':nut_and_bolt::man_zombie::nut_and_bolt:': 'It\'s Alive!',
+        ':peach:': 'Suspicious Fruit',
+        ':gun::monkey_face:': 'Monkioso',
+        ':skull::skull::adhesive_bandage::skull::skull:': 'Skeleton Band',
+        '<:crow1:903391005246619658><:crow2:903391005108215868><:crow3:903391005053698088><:crow4:903391005045309480><:crow5:903391004953042945><:crow6:903391004776882210>':'A Murder of Crows',
+        '🥜 🛒':'Nutdealer'
     }
 
     sel = random.choice(list(enemy_list.items()))
@@ -115,7 +122,6 @@ def getFlavour(monster):
         f'Wild {monster} appeared!'
         f'You were accosted by {monster}!'
         f'{monster} has come to make an announcement.'
-
     ]
 
     valid = False
@@ -132,14 +138,13 @@ async def on_ready():
     print("Ready!")
 
 
-def newEmbed(flavour, monster, time, health, maxhealth):
+def newEmbed(flavour, monster, time, health, maxhealth, actions='ATTACKS IN...', color=0xff0000):
     global hitpoints
 
     aliveFighters = []
     deadFighters = []
     t_deadText = ''
     t_aliveText = ''
-
     aliveText = "Nobody is fighting!"
     deadText = "Nobody has fallen!"
     playerDead = False
@@ -169,13 +174,12 @@ def newEmbed(flavour, monster, time, health, maxhealth):
         aliveText = t_aliveText
 
     embed = discord.Embed(title=f"{flavour}",
-                          description=f"{monster}", color=0xff0000)
+                          description=f"{monster}", color=color)
     embed.add_field(name="CURRENT HP", value=f"{health} / {maxhealth}", inline=True)
-    embed.add_field(name="ATTACKS IN...", value=f"{time + 1} Seconds", inline=True)
+    if actions: embed.add_field(name=actions, value=f"{time + 1} Seconds", inline=True)
     embed.add_field(name="COMBATANTS:", value="_ _", inline=False)
     embed.add_field(name="THE FIGHTERS", value=aliveText, inline=True)
     embed.add_field(name="THE FALLEN", value=deadText, inline=True)
-    embed.add_field(name="ACTIONS", value="What do you do?", inline=False)
 
     return embed
 
@@ -187,6 +191,8 @@ monster_HP = 0
 hitpoints = {}
 lastAttacker = 0
 userList = []
+turn = False
+loss = False
 
 
 async def attackHandler(interaction):
@@ -198,26 +204,31 @@ async def attackHandler(interaction):
 
 
 async def healHandler(interaction):
-    await heal(interaction, hitpoints[interaction.author.id])
+    return await heal(interaction, hitpoints[interaction.author.id])
 
 
 @commands.is_owner()
 @bot.command(name='generate')
 async def generate(ctx=None, channel=None):
-    global old_userList, battleOngoing, hitpoints, monster_HP, lastAttacker, userList
+    global old_userList, battleOngoing, hitpoints, monster_HP, lastAttacker, userList, turn, loss
 
     if ctx:
         channel = ctx.channel
 
     if battleOngoing:
-        await channel.reply("There is already an ongoing battle!")
         return
 
     hitpoints = {}
     monster, mname = getEnemy()
     flavour = getFlavour(mname)
 
-    monster_HP_MAX = 1000 + int(((len(old_userList)) * 100) * random.uniform(0.9, 1.4))
+    monster_HP_MAX = int(((len(old_userList)) * 300) * random.uniform(0.9, 1.3))
+    if loss:
+       monster_HP_MAX = monster_HP_MAX * 0.8
+    if monster_HP_MAX < 1000:
+        monster_HP_MAX = 1000
+    if mname is 'Sans':
+        monster_HP_MAX = 1
     monster_HP = monster_HP_MAX
     turnTime = 60
 
@@ -231,8 +242,8 @@ async def generate(ctx=None, channel=None):
     lastAttacker = None
 
     message = await channel.send(embed=embed, components=[
-        ActionRow(Button(label="🗡️", custom_id=f"attack_enemy", style=4),
-                  Button(label="💊", custom_id=f"heal_player", style=3))])
+        ActionRow(Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy", style=4),
+                  Button(label="💊 Heal Yourself", custom_id=f"heal_player", style=3))])
     while battleOngoing:
         userList = []
         if monster_HP <= 0:
@@ -258,22 +269,203 @@ async def generate(ctx=None, channel=None):
                 battleTime = int(time.time())
                 turnCount += 1
                 turn = False
+
+        if monster_HP > 0:
+            attacking = True
+            attacked = {}
+            attackstring = ''
+
+            validTargets = []
+            targetList = []
+
+            for i in hitpoints:
+                if hitpoints[i] > 0:
+                    validTargets.append(i)
+
+            atkcount = round((len(validTargets)) / 4)
+            if atkcount > 15:
+                atkcount = 15
+            elif atkcount == 0:
+                attacking = False
+        else:
+            attacking = False
+        if attacking:
+            attackstring = ''
+            while atkcount > 0 and attacking:
+                if len(validTargets) == 0:
+                    embed = newEmbed(f"{mname} is taking their turn!", monster, 14, monster_HP,
+                                     monster_HP_MAX, actions=f"Turn Length:", color=0xFFD800)
+                    embed.add_field(name=f'{mname} Tried Attacking...', value="But they weren't able to attack anyone!",
+                                    inline=False)
+                    attacking = False
+                    break
+                t_dmg = random.randrange(10, 35)
+                t_crit = random.randrange(1, 100)
+                targetValid = False
+                while not targetValid:
+                    t_attacked = random.choice(validTargets)
+                    if t_attacked not in targetList:
+                        targetValid = True
+                        targetList.append(t_attacked)
+
+                if t_crit >= 95:
+                    t_dmg = t_dmg * 2
+                attacked[t_attacked] = t_dmg
+                hitpoints[t_attacked] = hitpoints[t_attacked] - t_dmg
+                if hitpoints[t_attacked] < 0:
+                    t_dmg = t_dmg + hitpoints[t_attacked]
+                    hitpoints[t_attacked] = 0
+                attackstring = f'{attackstring}<@{t_attacked}> for {t_dmg} Damage!\n'
+                embed = newEmbed(f"{mname} is taking their turn!", monster, (14 + atkcount), monster_HP,
+                                 monster_HP_MAX, actions=f"Turn Length:", color=0xFFD800)
+                embed.add_field(name=f'{mname} attacked:', value=attackstring, inline=False)
+                await message.edit(embed=embed)
+                await asyncio.sleep(1)
+                atkcount -= 1
+            await asyncio.sleep(15)
+        elif monster_HP > 0:
+            embed = newEmbed(f"{mname} is taking their turn!", monster, 4, monster_HP,
+                             monster_HP_MAX, actions=f"Turn Length:", color=0xFFD800)
+            embed.add_field(name=f'{mname} tried attacking!', value="But they weren't able to attack anyone!",
+                            inline=False)
+            await message.edit(embed=embed)
+            await asyncio.sleep(5)
+
         battleTime = int(time.time())
         turn = True
     await message.edit(components=ActionRow())
     if victory:
         msg = f"{mname} was defeated!"
-        vEmbed = newEmbed(msg, monster, 0, 0, monster_HP_MAX)
-        reg_c = random.randrange(45, 55)
+        vEmbed = newEmbed(msg, monster, 0, 0, monster_HP_MAX, actions=False)
+        reg_c = random.randrange(45, 75)
         nar_c = random.randrange(2, 5)
         vEmbed.add_field(name='Monster Defeated',
-                         value=f'<@{lastAttacker}> got the final hit! They have been awarded with {reg_c} Candies and {nar_c} Rare Candies!')
-        await message.edit(embed=vEmbed)
+                         value=f'<@{lastAttacker}> got the final hit! They have been awarded with {reg_c} Candies and {nar_c} Rare Candies! (+{nar_c / 2}% Candy Multiplier)',
+                         inline=False)
+        loss = False
         addCandies(lastAttacker, reg_c, nar_c)
     else:
         msg = f"{mname} got away!"
-        vEmbed = newEmbed(msg, monster, 0, monster_HP, monster_HP_MAX)
-        vEmbed.add_field(name='Monster Escaped', value=f'The monster escaped, so nobody won anything! :(')
+        vEmbed = newEmbed(msg, monster, -1, monster_HP, monster_HP_MAX, actions=False)
+        vEmbed.add_field(name=f'{mname} Escaped', value=f'{mname} escaped, so nobody won anything! :(', inline=False)
+        loss = True
+    candyLeaderboard = {}
+    rareCandyLeaderboard = {}
+    trueCandyLeaderboard = {}
+    s_CL = {}
+    s_RL = {}
+    for i in os.listdir('./candy_jar'):
+        print(i)
+        user = int(i[:-5])
+        with open(f'./candy_jar/{i}', 'r') as file:
+            raw = json.loads(file.read())
+            candy, r_candy = raw
+            r_C = raw[candy]
+            r_R = raw[r_candy]
+        candyLeaderboard[user] = r_C
+        rareCandyLeaderboard[user] = r_R
+
+    c_length = len(candyLeaderboard)
+
+    lv1Str = ''
+    lv2Str = ''
+    lv3Str = ''
+    lv4Str = ''
+    lv5Str = ''
+    lv6Str = ''
+
+    for i in candyLeaderboard:
+        value = candyLeaderboard[i]
+        rare_value = rareCandyLeaderboard[i]
+        true_value = round(value * (1 + (rare_value / 200)))
+        trueCandyLeaderboard[i] = true_value
+
+        lvEmbed = discord.Embed(title='Level Up!', description='The Following users have levelled up!')
+
+        guild = message.guild
+        user = guild.get_member(i)
+
+        roleList = guild.roles
+        try:
+            if 0 < true_value < 100:
+                role = discord.utils.get(guild.roles, name='Candy Consumer (1-100)')
+                if role not in user.roles:
+                    await user.add_roles(role)
+                    if len(lv1Str) < 924:
+                        lv1Str = f'{lv1Str}<@{i}>, '
+            elif 100 < true_value < 250:
+                role = discord.utils.get(guild.roles, name='Candy Collector (100-250)')
+                if role not in user.roles:
+                    await user.add_roles(role)
+                    if len(lv2Str) < 924:
+                        lv2Str = f'{lv2Str}<@{i}>, '
+            elif 250 < true_value < 500:
+                role = discord.utils.get(guild.roles, name='Candy Curator (250-500)')
+                if role not in user.roles:
+                    await user.add_roles(role)
+                    if len(lv3Str) < 924:
+                        lv3Str = f'{lv3Str}<@{i}>, '
+            elif 500 < true_value < 1000:
+                role = discord.utils.get(guild.roles, name='Candy Celebrator (500-1000)')
+                if role not in user.roles:
+                    await user.add_roles(role)
+                    if len(lv4Str) < 924:
+                        lv4Str = f'{lv4Str}<@{i}>, '
+            elif 1000 < true_value < 1500:
+                role = discord.utils.get(guild.roles, name='Candy Chieftain (1000-1500)')
+                if role not in user.roles:
+                    await user.add_roles(role)
+                    if len(lv5Str) < 924:
+                        lv5Str = f'{lv5Str}<@{i}>, '
+            elif 1500 < true_value:
+                role = discord.utils.get(guild.roles, name='Candy Cosmopolitan! (1500+)')
+                if role not in user.roles:
+                    await user.add_roles(role)
+                    if len(lv6Str) < 924:
+                        lv6Str = f'{lv3Str}<@{i}>, '
+        except Exception as e:
+            print(e)
+
+    embCount = 0
+
+    if len(lv1Str) > 0: lvEmbed.add_field(name='Candy Consumer (1-100)', value=lv1Str, inline=False); embCount += 1
+    if len(lv2Str) > 0: lvEmbed.add_field(name='Candy Collector (100-250)', value=lv2Str, inline=False); embCount += 1
+    if len(lv3Str) > 0: lvEmbed.add_field(name='Candy Curator (250-500)', value=lv3Str, inline=False); embCount += 1
+    if len(lv4Str) > 0: lvEmbed.add_field(name='Candy Celebrator (500-1000)', value=lv4Str, inline=False); embCount += 1
+    if len(lv5Str) > 0: lvEmbed.add_field(name='Candy Chieftain (1000-1500)', value=lv5Str, inline=False); embCount += 1
+    if len(lv6Str) > 0: lvEmbed.add_field(name='Candy Cosmopolitan! (1500+)', value=lv6Str, inline=False); embCount += 1
+
+    if embCount > 0:
+        levelup = await message.reply(embed=lvEmbed)
+
+    sorted_tCL = dict(sorted(trueCandyLeaderboard.items(), key=operator.itemgetter(1), reverse=True))
+
+    # while len(s_CL) < c_length and len(s_CL) < 10:
+    #    temp = (0, 0)
+    #    for i in candyLeaderboard:
+    #        t_v, t_u = temp
+    #        i_mult = candyLeaderboard[i]
+    #        i_mult = int(i_mult * ((((rareCandyLeaderboard[i])/100)/2)+1))
+
+    #        if i_mult > t_v:
+    #            temp = i_mult, i
+
+    #    t_v, t_u = temp
+    #    s_CL[t_u] = t_v
+    #    candyLeaderboard.pop(t_u)
+
+    l_STR = ""
+
+    count = 1
+    for u in sorted_tCL:
+        if count > 10:
+            break
+        l_STR = f'{l_STR}{count}) <@{u}> - {sorted_tCL[u]} Candies | {rareCandyLeaderboard[u]} Rare Candies ({rareCandyLeaderboard[u] / 2}% Bonus Multiplier)\n'
+        count += 1
+
+    vEmbed.add_field(name='Candy Leaderboard!', value=l_STR, inline=True)
+
+    await message.edit(embed=vEmbed)
 
     old_userList = hitpoints.items()
 
@@ -337,10 +529,14 @@ async def heal(action, hitpoints):
         heal = int(heal * 0.75)
 
     hlEmbed = discord.Embed(title="You take a moment to heal your wounds.", color=0x59A361)
-    if hitpoints + heal >= 100:
+    hitpoints = min(100, (hitpoints + heal))
+    if hitpoints == 69:
+        hitpoints = 68
+        heal = heal =-1
+    if hitpoints == 100:
+        hitpoints = 100
         hlEmbed.description = "You were fully healed!\nYou have **100/100** health remaining."
     else:
-        hitpoints = hitpoints + heal
         hlEmbed.description = f"You were healed by {heal} hitpoints.\nYou now have **{hitpoints}/100** health remaining."
 
     await action.send(embed=hlEmbed)
@@ -348,35 +544,50 @@ async def heal(action, hitpoints):
     return hitpoints
 
 
+@commands.is_owner()
 @bot.command()
-async def candytest(ctx):
+async def send(ctx, channel, title, *, message:str):
     currentC, c_r_c = getCandies(ctx.author.id)
-    await ctx.send(f"You currently have {currentC} Candies and {c_r_c} rare candies!")
-    addCandies(ctx.author.id, 1, 5)
-    currentC, c_r_c = getCandies(ctx.author.id)
-    await ctx.send(f"You currently have {currentC} Candies and {c_r_c} rare candies!")
+    ch = bot.get_channel(int(channel))
+    embed = discord.Embed(title=title, description=message, color=0xff0000)
+    await ch.send(embed=embed)
+
 
 @tasks.loop(minutes=15)
 async def m_start():
     await generate(channel=bot.get_channel(monsterchannel))
 
-
-@commands.is_owner()
 @bot.command()
 async def start(ctx):
-    await m_start.start()
+    guild = ctx.guild
+    role = discord.utils.get(guild.roles, id=244328249801310219)
+
+    if role in ctx.author.roles or ctx.author.id == 110399543039774720:
+        await m_start.start()
 
 
-@commands.is_owner()
 @bot.command()
 async def stop(ctx):
-    await m_start.stop()
+
+    guild = ctx.guild
+    role = discord.utils.get(guild.roles, id=244328249801310219)
+
+    if role in ctx.author.roles or ctx.author.id == 110399543039774720:
+        m_start.stop()
+
 
 @bot.event
 async def on_button_click(interaction):
     global userList, hitpoints
 
-    print("button pushed, ", interaction)
+    if turn is False and battleOngoing is True:
+        await interaction.send(content="The monster is currently taking their turn so you cannot act!")
+        return
+
+    if not battleOngoing:
+        await interaction.send("There's not an ongoing battle!")
+        userList = []
+        return
 
     if interaction.author.id not in hitpoints:
         hitpoints[interaction.author.id] = 100
@@ -393,10 +604,11 @@ async def on_button_click(interaction):
     if interaction.custom_id == 'attack_enemy' and battleOngoing is True:
         await attackHandler(interaction)
     elif interaction.custom_id == 'heal_player' and battleOngoing is True:
-        await healHandler(interaction)
+        hitpoints[interaction.author.id] = await healHandler(interaction)
     else:
         await interaction.send("There's not an ongoing battle!")
         userList = []
+
 
 if __name__ == '__main__':
     print("Starting!")
