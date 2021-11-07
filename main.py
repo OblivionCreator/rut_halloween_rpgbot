@@ -81,8 +81,9 @@ def getEnemy():
         ':peach:': 'Suspicious Fruit',
         ':gun::monkey_face:': 'Monkioso',
         ':skull::skull::adhesive_bandage::skull::skull:': 'Skeleton Band',
-        '<:crow1:903391005246619658><:crow2:903391005108215868><:crow3:903391005053698088><:crow4:903391005045309480><:crow5:903391004953042945><:crow6:903391004776882210>':'A Murder of Crows',
-        '🥜 🛒':'Nutdealer'
+        '<:crow1:903391005246619658><:crow2:903391005108215868><:crow3:903391005053698088><:crow4:903391005045309480><:crow5:903391004953042945><:crow6:903391004776882210>': 'A Murder of Crows',
+        '🥜 🛒': 'Nutdealer',
+        '<:spamdude:903964210533388369>': '{{NUMBER 2 RATED SALESMAN 1997}}'
     }
 
     sel = random.choice(list(enemy_list.items()))
@@ -139,7 +140,7 @@ async def on_ready():
 
 
 def newEmbed(flavour, monster, time, health, maxhealth, actions='ATTACKS IN...', color=0xff0000):
-    global hitpoints
+    global hitpoints, old_deadlist, deadlist
 
     aliveFighters = []
     deadFighters = []
@@ -157,6 +158,8 @@ def newEmbed(flavour, monster, time, health, maxhealth, actions='ATTACKS IN...',
             tempHP = hitpoints[i]
             if tempHP <= 0:
                 playerDead = True
+                if i not in deadlist:
+                    deadlist.append(i)
                 if len(t_deadText) >= 900:
                     t_deadText = f'{t_deadText}(+ more...)'
                     break
@@ -186,9 +189,12 @@ def newEmbed(flavour, monster, time, health, maxhealth, actions='ATTACKS IN...',
 
 difficulty = 0
 old_userList = []
+old_deadlist = []
+deadlist = []
 battleOngoing = False
 monster_HP = 0
 hitpoints = {}
+dmgDone = {}
 lastAttacker = 0
 userList = []
 turn = False
@@ -197,11 +203,48 @@ loss = False
 
 async def attackHandler(interaction):
     global monster_HP, hitpoints, lastAttacker
-    m_dam, p_hp = await attack(interaction, hitpoints[interaction.author.id])
-    hitpoints[interaction.author.id] = p_hp
-    monster_HP = monster_HP - m_dam
     lastAttacker = interaction.author.id
+    if monster_HP > 0:
+        m_dam, p_hp = await attack(interaction, hitpoints[interaction.author.id])
+        hitpoints[interaction.author.id] = p_hp
+        monster_HP = monster_HP - m_dam
+    else:
+        sadEmbed = discord.Embed(title='Too Late!',
+                                 description='The monster has already been killed so you cannot attack it!')
+        interaction.send(embed=sadEmbed)
 
+async def candyHandler(interaction):
+    global hitpoints
+    cur_can, r_c = getCandies(interaction.author.id)
+    candyToLose = random.randrange(10, 30)
+
+    if cur_can < candyToLose:
+        candyToLose = cur_can
+
+    finalcandy = cur_can - candyToLose
+
+    dead_players = []
+
+    for i in hitpoints:
+        if hitpoints[i] == 0:
+            dead_players.append(i)
+
+    if len(dead_players) == 0 or candyToLose == 0:
+        if candyToLose > 0:
+            cEmbed = discord.Embed(title=f'You throw out some candy.', description=f'You threw away {candyToLose} candies. Good job..? You now have {finalcandy} candies.\n_(...what a waste of candy.)_', color=0x388500)
+        else:
+            cEmbed = discord.Embed(title='You tried to throw out some candy.', description='But you have no candy to throw!', color=0x388500)
+    else:
+        player = random.choice(dead_players)
+        guild = interaction.guild
+        user = guild.get_member(player)
+        cEmbed = discord.Embed(title=f'You threw {candyToLose} candies at {user.name}.', description=f'<@{player}> was healed by {candyToLose*2} health!', color=0x65EA00)
+        hitpoints[player] = candyToLose*2
+        deadlist.remove(player)
+
+    addCandies(interaction.author.id, -candyToLose, 0)
+
+    await interaction.send(embed=cEmbed)
 
 async def healHandler(interaction):
     return await heal(interaction, hitpoints[interaction.author.id])
@@ -210,7 +253,10 @@ async def healHandler(interaction):
 @commands.is_owner()
 @bot.command(name='generate')
 async def generate(ctx=None, channel=None):
-    global old_userList, battleOngoing, hitpoints, monster_HP, lastAttacker, userList, turn, loss
+    global old_userList, deadlist, old_deadlist, battleOngoing, hitpoints, monster_HP, lastAttacker, userList, turn, loss, dmgDone
+
+    old_deadlist = deadlist
+    deadlist = []
 
     if ctx:
         channel = ctx.channel
@@ -219,14 +265,15 @@ async def generate(ctx=None, channel=None):
         return
 
     hitpoints = {}
+    dmgDone = {}
     monster, mname = getEnemy()
     flavour = getFlavour(mname)
 
-    monster_HP_MAX = int(((len(old_userList)) * 300) * random.uniform(0.9, 1.3))
+    monster_HP_MAX = round(((len(old_userList)) * 400) * random.uniform(0.9, 1.3))
     if loss:
-       monster_HP_MAX = monster_HP_MAX * 0.8
-    if monster_HP_MAX < 1000:
-        monster_HP_MAX = 1000
+        monster_HP_MAX = int(monster_HP_MAX * 0.75)
+    if monster_HP_MAX < 3200:
+        monster_HP_MAX = 3200
     if mname is 'Sans':
         monster_HP_MAX = 1
     monster_HP = monster_HP_MAX
@@ -242,15 +289,16 @@ async def generate(ctx=None, channel=None):
     lastAttacker = None
 
     message = await channel.send(embed=embed, components=[
-        ActionRow(Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy", style=4),
-                  Button(label="💊 Heal Yourself", custom_id=f"heal_player", style=3))])
+        ActionRow(Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy", style=4, disabled=False),
+                  Button(label="💊 Heal Yourself", custom_id=f"heal_player", style=3, disabled=False),
+                  Button(label="🍬 Throw Candy", custom_id=f"throw_candy", style=1, disabled=False))])
     while battleOngoing:
         userList = []
         if monster_HP <= 0:
             turn = False
             battleOngoing = False
             victory = True
-        elif turnCount > 4:
+        elif turnCount >= 10:
             turn = False
             battleOngoing = False
             victory = False
@@ -261,7 +309,10 @@ async def generate(ctx=None, channel=None):
             try:
                 await message.edit(
                     embed=newEmbed(flavour, monster, ((battleTime + turnTime) - int(time.time())), monster_HP,
-                                   monster_HP_MAX))
+                                   monster_HP_MAX), components=[
+        ActionRow(Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy", style=4, disabled=False),
+                  Button(label="💊 Heal Yourself", custom_id=f"heal_player", style=3, disabled=False),
+                  Button(label="🍬 Throw Candy", custom_id=f"throw_candy", style=1, disabled=False))])
             except Exception as e:
                 print("Threw Exception! ", e)
             if battleTime + turnTime < int(time.time()):
@@ -270,7 +321,11 @@ async def generate(ctx=None, channel=None):
                 turnCount += 1
                 turn = False
 
-        if monster_HP > 0:
+        if monster_HP > 0 and turnCount < 10:
+            await message.edit(components=[
+                ActionRow(Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy", style=4, disabled=True),
+                          Button(label="💊 Heal Yourself", custom_id=f"heal_player", style=3, disabled=True),
+                          Button(label="🍬 Throw Candy", custom_id=f"throw_candy", style=1, disabled=True))])
             attacking = True
             attacked = {}
             attackstring = ''
@@ -328,22 +383,45 @@ async def generate(ctx=None, channel=None):
                              monster_HP_MAX, actions=f"Turn Length:", color=0xFFD800)
             embed.add_field(name=f'{mname} tried attacking!', value="But they weren't able to attack anyone!",
                             inline=False)
-            await message.edit(embed=embed)
+            await message.edit(embed=embed, components=[
+        ActionRow(Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy", style=4, disabled=True),
+                  Button(label="💊 Heal Yourself", custom_id=f"heal_player", style=3, disabled=True),
+                  Button(label="🍬 Throw Candy", custom_id=f"throw_candy", style=1, disabled=True))])
             await asyncio.sleep(5)
 
         battleTime = int(time.time())
-        turn = True
+        if turnCount < 10:
+            turn = True
     await message.edit(components=ActionRow())
     if victory:
         msg = f"{mname} was defeated!"
         vEmbed = newEmbed(msg, monster, 0, 0, monster_HP_MAX, actions=False)
-        reg_c = random.randrange(45, 75)
-        nar_c = random.randrange(2, 5)
-        vEmbed.add_field(name='Monster Defeated',
-                         value=f'<@{lastAttacker}> got the final hit! They have been awarded with {reg_c} Candies and {nar_c} Rare Candies! (+{nar_c / 2}% Candy Multiplier)',
-                         inline=False)
+        reg_c = random.randrange(35, 75)
+        nar_c = random.randrange(2, 6)
+
+        dmg_c = random.randrange(35, 75)
+        dmg_r = random.randrange(2, 6)
+
+        bestAttacker = None
+        tmpDMG = 0
+        tmpUSR = 0
+        for i in dmgDone:
+            if dmgDone[i] > tmpDMG and lastAttacker is not i:
+                tmpDMG = dmgDone[i]
+                tmpUSR = i
+
+        if tmpUSR != 0:
+            vEmbed.add_field(name='Monster Defeated',
+                             value=f'<@{lastAttacker}> got the final hit! They have been awarded with {reg_c} Candies and {nar_c} Rare Candies! (+{nar_c / 2}% Candy Multiplier)\n<@{tmpUSR}> did the most damage with {tmpDMG} damage! They have been awarded with {dmg_c} candies and {dmg_r} rare candies.',
+                             inline=False)
+        else:
+            vEmbed.add_field(name='Monster Defeated',
+                             value=f'<@{lastAttacker}> got the final hit! They have been awarded with {reg_c} Candies and {nar_c} Rare Candies! (+{nar_c / 2}% Candy Multiplier)',
+                             inline=False)
         loss = False
         addCandies(lastAttacker, reg_c, nar_c)
+        if tmpUSR != 0:
+            addCandies(tmpUSR, dmg_c, dmg_r)
     else:
         msg = f"{mname} got away!"
         vEmbed = newEmbed(msg, monster, -1, monster_HP, monster_HP_MAX, actions=False)
@@ -373,11 +451,14 @@ async def generate(ctx=None, channel=None):
     lv4Str = ''
     lv5Str = ''
     lv6Str = ''
+    lv7Str = ''
+    lv8Str = ''
+    lv9Str = ''
 
     for i in candyLeaderboard:
         value = candyLeaderboard[i]
         rare_value = rareCandyLeaderboard[i]
-        true_value = round(value * (1 + (rare_value / 200)))
+        true_value = round(value * (1 + min(0.5, (rare_value / 200))))
         trueCandyLeaderboard[i] = true_value
 
         lvEmbed = discord.Embed(title='Level Up!', description='The Following users have levelled up!')
@@ -385,46 +466,64 @@ async def generate(ctx=None, channel=None):
         guild = message.guild
         user = guild.get_member(i)
 
-        roleList = guild.roles
         try:
             if 0 < true_value < 100:
-                role = discord.utils.get(guild.roles, name='Candy Consumer (1-100)')
+                role = discord.utils.get(guild.roles, id=903193578979868683)
                 if role not in user.roles:
                     await user.add_roles(role)
                     if len(lv1Str) < 924:
                         lv1Str = f'{lv1Str}<@{i}>, '
             elif 100 < true_value < 250:
-                role = discord.utils.get(guild.roles, name='Candy Collector (100-250)')
+                role = discord.utils.get(guild.roles, id=903193687171948574)
                 if role not in user.roles:
                     await user.add_roles(role)
                     if len(lv2Str) < 924:
                         lv2Str = f'{lv2Str}<@{i}>, '
             elif 250 < true_value < 500:
-                role = discord.utils.get(guild.roles, name='Candy Curator (250-500)')
+                role = discord.utils.get(guild.roles, id=903193808685113385)
                 if role not in user.roles:
                     await user.add_roles(role)
                     if len(lv3Str) < 924:
                         lv3Str = f'{lv3Str}<@{i}>, '
             elif 500 < true_value < 1000:
-                role = discord.utils.get(guild.roles, name='Candy Celebrator (500-1000)')
+                role = discord.utils.get(guild.roles, id=903194375360757761)
                 if role not in user.roles:
                     await user.add_roles(role)
                     if len(lv4Str) < 924:
                         lv4Str = f'{lv4Str}<@{i}>, '
             elif 1000 < true_value < 1500:
-                role = discord.utils.get(guild.roles, name='Candy Chieftain (1000-1500)')
+                role = discord.utils.get(guild.roles, id=903194550175154176)
                 if role not in user.roles:
                     await user.add_roles(role)
                     if len(lv5Str) < 924:
                         lv5Str = f'{lv5Str}<@{i}>, '
-            elif 1500 < true_value:
-                role = discord.utils.get(guild.roles, name='Candy Cosmopolitan! (1500+)')
+            elif 1500 < true_value < 2500:
+                role = discord.utils.get(guild.roles, id=903194918208569384)
                 if role not in user.roles:
                     await user.add_roles(role)
                     if len(lv6Str) < 924:
-                        lv6Str = f'{lv3Str}<@{i}>, '
+                        lv6Str = f'{lv6Str}<@{i}>, '
+            elif 2500 < true_value < 5000:
+                role = discord.utils.get(guild.roles, id=904482997556895794)
+                if role not in user.roles:
+                    await user.add_roles(role)
+                    if len(lv7Str) < 924:
+                        lv7Str = f'{lv7Str}<@{i}>, '
+            elif 5000 < true_value < 10000:
+                role = discord.utils.get(guild.roles, id=905084335747637249)
+                if role not in user.roles:
+                    await user.add_roles(role)
+                    if len(lv8Str) < 924:
+                        lv8Str = f'{lv8Str}<@{i}>, '
+            elif 10000 < true_value:
+                role = discord.utils.get(guild.roles, id=905088080095109120)
+                if role not in user.roles:
+                    await user.add_roles(role)
+                    if len(lv9Str) < 924:
+                        lv9Str = f'{lv9Str}<@{i}>, '
+
         except Exception as e:
-            print(e)
+            print(e, true_value, user, role)
 
     embCount = 0
 
@@ -433,7 +532,14 @@ async def generate(ctx=None, channel=None):
     if len(lv3Str) > 0: lvEmbed.add_field(name='Candy Curator (250-500)', value=lv3Str, inline=False); embCount += 1
     if len(lv4Str) > 0: lvEmbed.add_field(name='Candy Celebrator (500-1000)', value=lv4Str, inline=False); embCount += 1
     if len(lv5Str) > 0: lvEmbed.add_field(name='Candy Chieftain (1000-1500)', value=lv5Str, inline=False); embCount += 1
-    if len(lv6Str) > 0: lvEmbed.add_field(name='Candy Cosmopolitan! (1500+)', value=lv6Str, inline=False); embCount += 1
+    if len(lv6Str) > 0: lvEmbed.add_field(name='Candy Cosmopolitan! (1500-2500)', value=lv6Str,
+                                          inline=False); embCount += 1
+    if len(lv7Str) > 0: lvEmbed.add_field(name='Candy Confidant!!! (2500-5000)', value=lv7Str,
+                                          inline=False); embCount += 1
+    if len(lv8Str) > 0: lvEmbed.add_field(name='Candy Corporal!!! (5000-10000)', value=lv8Str,
+                                          inline=False); embCount += 1
+    if len(lv9Str) > 0: lvEmbed.add_field(name='Candy Connoisseur!!! (10,000+)', value=lv9Str,
+                                          inline=False); embCount += 1
 
     if embCount > 0:
         levelup = await message.reply(embed=lvEmbed)
@@ -460,7 +566,7 @@ async def generate(ctx=None, channel=None):
     for u in sorted_tCL:
         if count > 10:
             break
-        l_STR = f'{l_STR}{count}) <@{u}> - {sorted_tCL[u]} Candies | {rareCandyLeaderboard[u]} Rare Candies ({rareCandyLeaderboard[u] / 2}% Bonus Multiplier)\n'
+        l_STR = f'{l_STR}{count}) <@{u}> - {sorted_tCL[u]} Candies | {rareCandyLeaderboard[u]} Rare Candies ({min(50.0, rareCandyLeaderboard[u] / 2)}% Bonus Multiplier)\n'
         count += 1
 
     vEmbed.add_field(name='Candy Leaderboard!', value=l_STR, inline=True)
@@ -471,20 +577,26 @@ async def generate(ctx=None, channel=None):
 
 
 async def attack(action, player_hp):
-    attackLow = 75
-    attackHigh = 150
+    global dmgDone
+    attackLow = 95
+    attackHigh = 175
     attackDmg = random.randrange(attackLow, attackHigh)
 
     if player_hp < 50:
-        attackDmg = int(attackDmg * 1.15)
-    elif player_hp < 25:
         attackDmg = int(attackDmg * 1.25)
+    elif player_hp < 25:
+        attackDmg = int(attackDmg * 1.35)
 
-    n_C = random.randrange(1, 10)
-    r_C = 0
+    n_C = random.randrange(5, 15)
+
+    rareChance = 98
+    if random.randrange(0, 100) >= rareChance:
+        r_C = 1
+    else:
+        r_C = 0
     c_C, c_R = getCandies(action.author.id)
 
-    HPLoss = random.randrange(10, 35)
+    HPLoss = random.randrange(0, 45)
     player_hp = player_hp - HPLoss
 
     if HPLoss > 30:
@@ -493,10 +605,10 @@ async def attack(action, player_hp):
     crit = random.randrange(1, 100)
 
     if crit >= 95:
-        r_C = 1
-        attackDmg = attackDmg * 2
+        r_C += 1
+        attackDmg = attackDmg * 3
         pmEmbed = discord.Embed(title="You attack the enemy!", color=0xFFD800)
-        pmEmbed.description = f"CRITICAL HIT! You deal {attackDmg} damage!\nThe enemy dropped {n_C} candies and {r_C} rare candy. You now have {c_C + n_C} candies and {c_R + r_C} rare candies."
+        pmEmbed.description = f"**CRITICAL HIT!** You deal {attackDmg} damage!\nThe enemy dropped {n_C} candies and {r_C} rare candy. You now have {c_C + n_C} candies and {c_R + r_C} rare candies."
         player_hp = player_hp + HPLoss
         pmEmbed.set_image(
             url='https://media.discordapp.net/attachments/669077343482019870/902003156924379156/tumblr_m0biocwpJC1rnm2iko1_500.png')
@@ -512,17 +624,25 @@ async def attack(action, player_hp):
         else:
             dmgText = f', but take {HPLoss}'
 
-        pmEmbed.description = f'You deal {attackDmg} damage{dmgText} damage in return.\nYou currently have **{player_hp}/100** health remaining.\nThe enemy dropped {n_C} candies. You now have {c_C + n_C} candies'
+        if r_C == 0:
+            pmEmbed.description = f'You deal {attackDmg} damage{dmgText} damage in return.\nYou currently have **{player_hp}/100** health remaining.\nThe enemy dropped {n_C} candies. You now have {c_C + n_C} candies'
+        else:
+            pmEmbed.description = f'You deal {attackDmg} damage{dmgText} damage in return.\nYou currently have **{player_hp}/100** health remaining.\nThe enemy dropped {n_C} candies and {r_C} rare candy!. You now have {c_C + n_C} candies and {c_R + r_C} rare candies.'
     await action.send(embed=pmEmbed)
 
     addCandies(action.author.id, n_C, r_C)
+
+    if action.author.id not in dmgDone:
+        dmgDone[action.author.id] = attackDmg
+    else:
+        dmgDone[action.author.id] = dmgDone[action.author.id] + attackDmg
 
     return attackDmg, player_hp
 
 
 async def heal(action, hitpoints):
-    healLow = 15
-    healHigh = 55
+    healLow = 20
+    healHigh = 60
     heal = random.randrange(healLow, healHigh)
 
     if hitpoints > 75:
@@ -531,8 +651,8 @@ async def heal(action, hitpoints):
     hlEmbed = discord.Embed(title="You take a moment to heal your wounds.", color=0x59A361)
     hitpoints = min(100, (hitpoints + heal))
     if hitpoints == 69:
-        hitpoints = 68
-        heal = heal =-1
+        hitpoints = 70
+        heal = heal + 1
     if hitpoints == 100:
         hitpoints = 100
         hlEmbed.description = "You were fully healed!\nYou have **100/100** health remaining."
@@ -546,16 +666,17 @@ async def heal(action, hitpoints):
 
 @commands.is_owner()
 @bot.command()
-async def send(ctx, channel, title, *, message:str):
+async def send(ctx, channel, title, *, message: str):
     currentC, c_r_c = getCandies(ctx.author.id)
     ch = bot.get_channel(int(channel))
     embed = discord.Embed(title=title, description=message, color=0xff0000)
     await ch.send(embed=embed)
 
 
-@tasks.loop(minutes=15)
+@tasks.loop(minutes=25)
 async def m_start():
     await generate(channel=bot.get_channel(monsterchannel))
+
 
 @bot.command()
 async def start(ctx):
@@ -568,7 +689,6 @@ async def start(ctx):
 
 @bot.command()
 async def stop(ctx):
-
     guild = ctx.guild
     role = discord.utils.get(guild.roles, id=244328249801310219)
 
@@ -590,7 +710,10 @@ async def on_button_click(interaction):
         return
 
     if interaction.author.id not in hitpoints:
-        hitpoints[interaction.author.id] = 100
+        if interaction.author.id in old_deadlist:
+            hitpoints[interaction.author.id] = 50
+        else:
+            hitpoints[interaction.author.id] = 100
 
     if hitpoints[interaction.author.id] <= 0:
         await interaction.send(content="GAME OVER!\nYou were defeated and have been disengaged from the battle!")
@@ -605,6 +728,8 @@ async def on_button_click(interaction):
         await attackHandler(interaction)
     elif interaction.custom_id == 'heal_player' and battleOngoing is True:
         hitpoints[interaction.author.id] = await healHandler(interaction)
+    elif interaction.custom_id == 'throw_candy' and battleOngoing is True:
+        await candyHandler(interaction)
     else:
         await interaction.send("There's not an ongoing battle!")
         userList = []
