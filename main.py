@@ -91,26 +91,28 @@ def getCandies(userid: int):
         with open(f"./candy_jar/{userid}.json", 'x') as file:
             def_candies = {
                 'candy': 0,
-                'rare_candy': 0
+                'rare_candy': 0,
+                'candy_today': 0
             }
             file.write(json.dumps(def_candies))
 
     with open(f"./candy_jar/{userid}.json", 'r') as c_file:
         raw = json.loads(c_file.read())
-        candy, r_candy = raw
+        candy, r_candy, c_candy = raw
 
-    return raw[candy], raw[r_candy]
+    return raw[candy], raw[r_candy], raw[c_candy]
 
 
 def addCandies(userid, n_candy, n_r_candy):
-    candy, r_candy = getCandies(userid)
+    candy, r_candy, c_candy = getCandies(userid)
 
     candy = candy + n_candy
     r_candy = r_candy + n_r_candy
 
     c_dict = {
         'candy': candy,
-        'rare_candy': r_candy
+        'rare_candy': r_candy,
+        'candy_today': c_candy
     }
 
     with open(f"./candy_jar/{userid}.json", 'w') as file:
@@ -269,6 +271,14 @@ async def attackHandler(interaction):
                                  description='The monster has already been killed so you cannot attack it!')
         interaction.send(embed=sadEmbed, ephemeral=True)
 
+async def spellHandler(inter):
+    spell_fireball = disnake.SelectOption(label='Fireball', description='A ranged attack for medium damage, but much lower risk.', emoji='🔥')
+    spell_defend = disnake.SelectOption(label='Defend', description='Put yourself front-and-center to defend other party members from attacks!', emoji='🛡️')
+    spell_heal = disnake.SelectOption(label='Heal', description='Heal yourself for a moderate HP boost!', emoji='💊')
+    spell_aoe_heal = disnake.SelectOption(label='Area Heal', description='Heal yourself and all other party members for a small HP boost!', emoji='🚑')
+    spell_revive = disnake.SelectOption(label='Revive', description='Revive another user to a weakened state.', emoji='🛏')
+    spell_menu = disnake.ui.Select(options=[spell_fireball, spell_defend, spell_heal, spell_aoe_heal, spell_revive])
+    await inter.send(components=spell_menu, ephemeral=True)
 
 async def candyHandler(interaction):
     global hitpoints
@@ -375,11 +385,9 @@ async def generate(ctx=None, channel=None):
 
     message = await channel.send(embed=embed, components=[
         disnake.ui.ActionRow(
-            disnake.ui.Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy", style=disnake.Color(4),
+            disnake.ui.Button(label="🗡️ Basic Attack", custom_id=f"attack_enemy", style=disnake.Color(4),
                               disabled=False),
-            disnake.ui.Button(label="💊 Heal Yourself", custom_id=f"heal_player", style=disnake.Color(3),
-                              disabled=False),
-            disnake.ui.Button(label="💰 Make a [DEAL]", custom_id=f"throw_candy", style=disnake.Color(1),
+            disnake.ui.Button(label="📖 Spells & Skills", custom_id=f"heal_player", style=disnake.Color(3),
                               disabled=False))])
     while battleOngoing:
         userList = []
@@ -400,12 +408,10 @@ async def generate(ctx=None, channel=None):
                     await message.edit(
                         embed=newEmbed(flavour, monster, f'<t:{battleTime+62}:R>', monster_HP,
                                        monster_HP_MAX), components=[
-                            disnake.ui.ActionRow(disnake.ui.Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy",
+                            disnake.ui.ActionRow(disnake.ui.Button(label="🗡️ Basic Attack", custom_id=f"attack_enemy",
                                                                    style=disnake.Color(4), disabled=False),
-                                                 disnake.ui.Button(label="💊 Heal Yourself", custom_id=f"heal_player",
-                                                                   style=disnake.Color(3), disabled=False),
-                                                 disnake.ui.Button(label="💰 Make a [DEAL]", custom_id=f"throw_candy",
-                                                                   style=disnake.Color(1), disabled=False))])
+                                                 disnake.ui.Button(label="📖 Spells & Skills", custom_id=f"heal_player",
+                                                                   style=disnake.Color(3), disabled=False))])
                 except Exception as e:
                     print("Threw Exception! ", e)
                 action_to_process = False
@@ -418,11 +424,9 @@ async def generate(ctx=None, channel=None):
         if monster_HP > 0 and turnCount < 10:
             await message.edit(components=[
                 disnake.ui.ActionRow(
-                    disnake.ui.Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy", style=disnake.Color(4),
+                    disnake.ui.Button(label="🗡️ Basic Attack", custom_id=f"attack_enemy", style=disnake.Color(4),
                                       disabled=True),
-                    disnake.ui.Button(label="💊 Heal Yourself", custom_id=f"heal_player", style=disnake.Color(3),
-                                      disabled=True),
-                    disnake.ui.Button(label="💰 Make a [DEAL]", custom_id=f"throw_candy", style=disnake.Color(1),
+                    disnake.ui.Button(label="📖 Spells & Skills", custom_id=f"heal_player", style=disnake.Color(3),
                                       disabled=True))])
             attacking = True
             attacked = {}
@@ -483,11 +487,9 @@ async def generate(ctx=None, channel=None):
                             inline=False)
             await message.edit(embed=embed, components=[
                 disnake.ui.ActionRow(
-                    disnake.ui.Button(label="🗡️ Attack Enemy", custom_id=f"attack_enemy", style=disnake.Color(4),
+                    disnake.ui.Button(label="🗡️ Basic Attack", custom_id=f"attack_enemy", style=disnake.Color(4),
                                       disabled=True),
-                    disnake.ui.Button(label="💊 Heal Yourself", custom_id=f"heal_player", style=disnake.Color(3),
-                                      disabled=True),
-                    disnake.ui.Button(label="💰 Make a [DEAL]", custom_id=f"throw_candy", style=disnake.Color(1),
+                    disnake.ui.Button(label="📖 Spells & Skills", custom_id=f"heal_player", style=disnake.Color(3),
                                       disabled=True))])
             await asyncio.sleep(5)
         action_to_process = True
@@ -851,7 +853,8 @@ async def on_button_click(interaction):
     if interaction.component.custom_id == 'attack_enemy' and battleOngoing is True:
         await attackHandler(interaction)
     elif interaction.component.custom_id == 'heal_player' and battleOngoing is True:
-        hitpoints[interaction.author.id] = await healHandler(interaction)
+        await spellHandler(interaction)
+        #hitpoints[interaction.author.id] = await healHandler(interaction)
     elif interaction.component.custom_id == 'throw_candy' and battleOngoing is True:
         await candyHandler(interaction)
     else:
