@@ -48,7 +48,7 @@ enemy_list = {
 ':red_circle::knife:     :blue_circle:': {'name': 'Crewmates', 'description': 'Several are pointing fingers at you and shouting accusations while another runs around stabbing various other ones in the back.'},
 ':hedgehog: :ring: :ring: :ring:': {'name': 'Sonic The Hedgehog', 'description': 'What he lacks in good games, he has in fandom. Careful before the Sonic Mania gets to you!'},
 ':tophat:\n:bat:': {'name': 'Bat in a Hat', 'description': 'A bat in a hat and that is that.'},
-'💉🌻': {'name': 'The Experiment', 'description': 'An experiment gone-wrong. He insists he has a name, but you care not for his feelings, for he has none.'},
+'💉🌻': {'name': 'The Experiment', 'description': 'An experiment gone wrong. He insists he has a name, but you care not for his feelings, for he has none.'},
 ':adhesive_bandage::head_bandage:': {'name': 'DIY Mummy', 'description': 'Available in all good hardware stores.'},
 '⚱️🚬': {'name': 'Pot Smoker', 'description': 'We\'re not sure what happens when you smoke ceramics either.'},
 ':nut_and_bolt::man_zombie::nut_and_bolt:': {'name': 'It\'s Alive!', 'description': 'This isn\'t the monster. Frankenstein was the real monster. But it\'s still going to attack you anyway, so keep up your guard!'},
@@ -60,7 +60,7 @@ enemy_list = {
 '<:spamdude:903964210533388369>': {'name': '{{NUMBER 2 RATED SALESMAN 1997}}', 'description': 'The flavour text keeps getting caught in your spam filter.'},
 '🐀🐀🐀🐀': {'name': 'Rat King', 'description': 'In another world, perhaps one of them would be a chef. Target the big one - he\'s making the rules!'},
 '💀''🌀': {'name': 'funny skeleton', 'description': 'Thinks you\'re in for a bad time.'},
-'🦊🚁': {'name': 'Tails the Fox', 'description': 'Child Genius who didn\'t think to bring a weapon to this duel.'},
+'🦊🚁': {'name': 'Tails the Fox', 'description': 'Child Genius who didn\'t think to bring a weapon to this fight.'},
 '🔶': {'name': 'Orange Star', 'description': 'We haven\'t told him what stars look like.'},
 '👨🐱👩🚀': {'name': 'Team Rocket', 'description': 'Surrender now, or prepare for a fight.'},
 '🪩🕺': {'name': 'Saturday Fright Fever', 'description': 'You both agree Friday is the worst day of the week, but they\'re still feeling up for a fight!'},
@@ -590,7 +590,7 @@ async def generate(ctx=None, channel=None):
         true_value = round(value * (1 + min(0.5, (rare_value / 200))))
         trueCandyLeaderboard[i] = true_value
 
-        lvEmbed = disnake.Embed(title='Level Up!', description='The Following users have levelled up!')
+        lvEmbed = disnake.Embed(title='Level Up!', description='The following users have levelled up!')
 
         guild = message.guild
         user = guild.get_member(i)
